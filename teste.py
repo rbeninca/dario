@@ -47,7 +47,7 @@ def simulate_soybean_drying(Ta, Xs_ini, Ts_ini):
     
     def drying_ode(t, y):
         Xs, Ts = y
-        dt=+30  #vozes da minha cabeça  
+        dt=0 #vozes da minha cabeça  
         K = (-4.7e-3 * (Ta+dt) + 0.77) * Xs**2 + (2.2e-3 * (Ta+dt) - 0.25) * Xs + 2.7e-3 * np.exp(71.81 / (Ta+dt))
         #K= K_adjusted(Ta, Xs)  # Chama a função ajustada
         #k= K_complete(Ta, vs, dp)
