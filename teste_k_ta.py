@@ -12,7 +12,7 @@ def K_adjusted(Ta, Xs):
     return 0.01 * (Ta / 40) * (Xs + 0.1)
 
 for Xs in Xs_values:
-    ##K_values = (-4.7e-3 * Ta_range + 0.77) * Xs**2 + (2.2e-3 * Ta_range - 0.25) * Xs + 2.7e-3 * np.exp(71.81 / Ta_range)
+    K_values_gianini = (-4.7e-3 * Ta_range + 0.77) * Xs**2 + (2.2e-3 * Ta_range - 0.25) * Xs + 2.7e-3 * np.exp(71.81 / Ta_range)
     K_values = K_adjusted(Ta_range, Xs)  # Chama a função ajustada
     plt.plot(Ta_range, K_values, label=f"Xs = {Xs}")
 
