@@ -19,6 +19,13 @@ def simulate_soybean_drying(Ta, Xs_ini, Ts_ini):
     epsilon = 1 - rho_ap / rho_s
     tr = 0.19 * L / (N**0.19 * De * S)
     vs = L / tr
+
+
+    def K_empirical(Ta, Xs_ini, k0=0.004, T_ref=40, X_ref=0.22, a=1.0, b=1.0):
+        K = k0 * (Ta / T_ref) ** a * (Xs_ini / X_ref) ** b
+        return K
+
+    
     def K_adjusted(Ta, Xs):
         # Modelo simplificado com dependência linear em Ta e Xs
         return 0.01 * (Ta / 40) * (Xs + 0.1)
@@ -40,8 +47,11 @@ def simulate_soybean_drying(Ta, Xs_ini, Ts_ini):
     
     def drying_ode(t, y):
         Xs, Ts = y
-        #K = (-4.7e-3 * Ta + 0.77) * Xs**2 + (2.2e-3 * Ta - 0.25) * Xs + 2.7e-3 * np.exp(71.81 / Ta)
-        K= K_adjusted(Ta, Xs)  # Chama a função ajustada
+        dt=+30  #vozes da minha cabeça  
+        K = (-4.7e-3 * (Ta+dt) + 0.77) * Xs**2 + (2.2e-3 * (Ta+dt) - 0.25) * Xs + 2.7e-3 * np.exp(71.81 / (Ta+dt))
+        #K= K_adjusted(Ta, Xs)  # Chama a função ajustada
+        #k= K_complete(Ta, vs, dp)
+        #K = K_empirical(Ta, Xs)
         Xe = 0.834 / (1 + 0.036 * (Ta + 273.15) * np.log(1 / ur))
         R = K * (Xs - Xe)
         as_ = 1000
