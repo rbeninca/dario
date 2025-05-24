@@ -1,87 +1,89 @@
-# Vou apresentar o código modificado do MATLAB convertido para Python, adaptado ao modelo descrito por Gianini.
 import numpy as np
 from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
 
-# Parâmetros do secador rotativo direto (com base na tese de Gianini)
-L = 1.47        # Comprimento do secador (m)
-De = 0.16       # Diâmetro do secador (m)
-N = 4           # Rotação do secador (rpm)
-S = np.tan(1.57 * np.pi / 180)  # Inclinação do secador (rad)
-dp = 0.002      # Diâmetro médio das partículas (m)
-Xs_ini = 0.22   # Umidade inicial (base seca)
-Ta = 55         # Temperatura do ar (°C)
-ur = 0.19       # Umidade relativa do ar
-ms_dot = 0.00333 # Vazão mássica do sólido (kg/s)
-
-# Propriedades físicas
-rho_s = 700     # Massa específica do sólido seco (kg/m³)
-rho_ap = 500    # Massa específica aparente (kg/m³)
-cps = 1.67      # Calor específico do sólido (kJ/kg°C)
-cpw = 4.18      # Calor específico da água (kJ/kg°C)
-
-# Parâmetros auxiliares
-epsilon = 1 - rho_ap / rho_s
-psi = 10 ** (-1.82 * (1 - epsilon))
-tr = 0.19 * L / (N**0.19 * De * S) # Tempo de residência (s)
-vs = L / tr                         # Velocidade axial do sólido (m/s)
-
-# Condições iniciais
-y0 = [Xs_ini, 25]  # Umidade inicial e temperatura inicial do sólido (°C)
-
-# Equações diferenciais baseadas em Gianini
-def drying_ode(t, y):
-    Xs, Ts = y
-
-    # Equações da tese Gianini
+# Função de simulação
+def simulate_soybean_drying(Ta, Xs_ini, Ts_ini):
+    # Parâmetros do secador e propriedades físicas
+    L = 1.47
+    De = 0.16
+    N = 4
+    S = np.tan(1.57 * np.pi / 180)
+    dp = 0.002
+    ur = 0.19
+    ms_dot = 0.00333
+    rho_s = 700
+    rho_ap = 500
+    cps = 1.67
+    cpw = 4.18
+    epsilon = 1 - rho_ap / rho_s
+    tr = 0.19 * L / (N**0.19 * De * S)
+    vs = L / tr
+    def K_adjusted(Ta, Xs):
+        # Modelo simplificado com dependência linear em Ta e Xs
+        return 0.01 * (Ta / 40) * (Xs + 0.1)
+    def K_complete(Ta, u, dp, rho_a=1.2, mu=1.8e-5, D_AB=2.5e-5, rho_s=700, c_p=1.67):
+         # Número de Reynolds
+        Re = rho_a * u * dp / mu
+        # Número de Schmidt
+        Sc = mu / (rho_a * D_AB)
+        # Número de Sherwood
+        Sh = 2 + (0.6 * Re**0.5 * Sc**(1/3))
+        # Correlação empírica clássica: Sherwood
+        C, m = 2, 0.6  # valores típicos para partículas em fluxo de ar
+        Sh = C * (Re ** m) * (Sc ** (1/3))
+        # Coeficiente convectivo de massa
+        k_m = Sh * D_AB / dp  # [m/s]
+        # Coeficiente global de transferência de massa volumétrico
+        K = k_m / (rho_s * c_p)  # [1/s]
+        return K
     
-    K = (-4.7e-3 * Ta + 0.77) * Xs ** 2 + (2.2e-3 * Ta - 0.25) * Xs + 2.7e-3 * np.exp(71.81 / Ta)
-    Xe = 0.834 / (1 + 0.036 * (Ta + 273.15) * np.log(1 / ur))
-    R = K * (Xs - Xe)
+    def drying_ode(t, y):
+        Xs, Ts = y
+        #K = (-4.7e-3 * Ta + 0.77) * Xs**2 + (2.2e-3 * Ta - 0.25) * Xs + 2.7e-3 * np.exp(71.81 / Ta)
+        K= K_adjusted(Ta, Xs)  # Chama a função ajustada
+        Xe = 0.834 / (1 + 0.036 * (Ta + 273.15) * np.log(1 / ur))
+        R = K * (Xs - Xe)
+        as_ = 1000
+        hc = 0.05
+        lambda_ = 2500 - cpw * Ts
+        dXsdt = -R
+        denominator = cps + 0.22 * cpw
+        Q_dot = as_ * hc * (Ta - Ts)
+        dTsdt = (1 / denominator) * (Q_dot / rho_s - lambda_ * R)
+        return [dXsdt, dTsdt]
+    
+    y0 = [Xs_ini, Ts_ini]
+    t_span = (0, tr)
+    t_eval = np.linspace(0, tr, 100)
+    sol = solve_ivp(drying_ode, t_span, y0, t_eval=t_eval)
+    z = vs * sol.t
+    return z, sol.y[0], sol.y[1], tr, vs
 
-    # Transferência de calor
-    as_ = 1000
-    hc = 0.05
-    lambda_ = 2500 - cpw * Ts
+# Condições de simulação
+conditions = [
+    {'Ta': 40, 'Xs_ini': 0.22, 'Ts_ini': 25},
+    {'Ta': 50, 'Xs_ini': 0.22, 'Ts_ini': 25},
+    {'Ta': 60, 'Xs_ini': 0.22, 'Ts_ini': 25},
+    {'Ta': 40, 'Xs_ini': 0.18, 'Ts_ini': 25},
+    {'Ta': 50, 'Xs_ini': 0.18, 'Ts_ini': 25},
+    {'Ta': 60, 'Xs_ini': 0.18, 'Ts_ini': 25},
+    {'Ta': 40, 'Xs_ini': 0.14, 'Ts_ini': 25},
+    {'Ta': 50, 'Xs_ini': 0.14, 'Ts_ini': 25},
+    {'Ta': 60, 'Xs_ini': 0.14, 'Ts_ini': 25}
+]  
 
-    # Balanço de massa e energia
-    dXsdt = -R
-    denominator = cps + 0.22 * cpw
-    Q_dot = as_ * hc * (Ta - Ts)
-    dTsdt = (1 / denominator) * (Q_dot / rho_s - lambda_ * R)
+# Plot dos perfis de umidade
+plt.figure(figsize=(10, 6))
 
-    return [dXsdt, dTsdt]
+for cond in conditions:
+    z, Xs, Ts, tr, vs = simulate_soybean_drying(cond['Ta'], cond['Xs_ini'], cond['Ts_ini'])
+    label = f"Ta={cond['Ta']}°C, Xs_ini={cond['Xs_ini']}, Ts_ini={cond['Ts_ini']}°C"
+    plt.plot(z, Xs, label=label)
 
-# Tempo da simulação
-t_span = (0, tr)
-t_eval = np.linspace(0, tr, 100)
-
-# Resolver as EDOs
-sol = solve_ivp(drying_ode, t_span, y0, t_eval=t_eval)
-
-# Plotar resultados
-fig, ax = plt.subplots(1, 2, figsize=(14, 5))
-
-# Umidade vs tempo
-ax[0].plot(sol.t, sol.y[0], 'b-', linewidth=2)
-ax[0].set_xlabel('Tempo (s)')
-ax[0].set_ylabel('Umidade (base seca)')
-ax[0].set_title('Umidade do Farelo com o Tempo')
-ax[0].grid(True)
-
-# Umidade vs comprimento do secador
-z = vs * sol.t
-ax[1].plot(z, sol.y[0], 'r-', linewidth=2)
-ax[1].set_xlabel('Comprimento do Secador (m)')
-ax[1].set_ylabel('Umidade (base seca)')
-ax[1].set_title('Umidade ao Longo do Secador')
-ax[1].grid(True)
-
-plt.tight_layout()
+plt.xlabel("Comprimento do Secador (m)")
+plt.ylabel("Umidade (b.s.)")
+plt.title("Perfis de Umidade ao Longo do Secador")
+plt.legend()
+plt.grid(True)
 plt.show()
-
-# Exibir resultados finais
-Xs_final = sol.y[0, -1]
-Ts_final = sol.y[1, -1]
-
-(tr, vs, Xs_final, Ts_final)

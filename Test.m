@@ -1,1 +1,0 @@
-disp('MATLAB no VS Code funcionando!');
